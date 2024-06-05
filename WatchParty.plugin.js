@@ -9,7 +9,7 @@ module.exports = class WatchParty {
     return "Start a Stremio session with friends: watch party, chat (soon) and share controls. No addon sharing required.";
   }
   getVersion() {
-    return "1.0.0";
+    return "1.0.1";
   }
   getAuthor() {
     return "MateusAquino";
@@ -83,9 +83,9 @@ module.exports = class WatchParty {
   getServers() {
     return {
       L: "ws://localhost:3000/",
-      R: "wss://watchparty-kyiy.onrender.com",
-      G: "wss://dramatic-hazel-epoch.glitch.me",
-      A: "wss://watch-party.adaptable.app",
+      // R: "wss://watchparty-kyiy.onrender.com",
+      // G: "wss://dramatic-hazel-epoch.glitch.me",
+      // A: "wss://watch-party.adaptable.app",
     };
   }
   pickRandom(partyServer) {
@@ -141,7 +141,16 @@ module.exports = class WatchParty {
     };
     WatchParty.client.onmessage = this.handleMessage;
     WatchParty.client.onopen = WatchParty.client.heartbeat;
+
+    window.WatchParty.warnOnClose = false;
+    const warnTimeout = setTimeout(() => {
+      window.WatchParty.warnOnClose = true;
+    }, 5000);
+
     WatchParty.client.onclose = () => {
+      clearTimeout(warnTimeout);
+      if (window.WatchParty.warnOnClose)
+        BetterStremio.Toasts.warning("Disconnected!", "You've left the party.");
       document.getElementById("wp-popup").classList.remove("wp-loading");
       document.getElementById("wp-popup").classList.add("wp-noparty");
       console.log("[WatchParty] Connection closed.");
@@ -251,11 +260,11 @@ module.exports = class WatchParty {
         .map(
           (member) =>
             `<div class="row user-row">
-              ${member.userName} ${member.isHost ? "(host)" : ""}
-              <button onclick="WatchParty.toggle('${
-                member.userId
-              }')">Toggle Host</button>
-              </div>`
+            ${member.userName} ${member.isHost ? "(host)" : ""}
+            <button onclick="WatchParty.toggle('${
+              member.userId
+            }')">Toggle Host</button>
+            </div>`
         )
         .join("");
     } else if (message.data.startsWith("cmd:")) {
@@ -293,7 +302,7 @@ module.exports = class WatchParty {
       window.WatchParty.injectedGo = true;
     }
 
-    if (!window.WatchParty.injectedState && BetterStremio.Modules.deviceHtml5) {
+    if (!window.WatchParty.injectedHtml5 && BetterStremio.Modules.deviceHtml5) {
       BetterStremio.Modules.deviceHtml5.addListener("statechanged", (state) => {
         if (state.NO_SPREAD) return;
         if (
@@ -314,9 +323,34 @@ module.exports = class WatchParty {
       BetterStremio.Modules.deviceHtml5.addListener("error", (error) => {
         window.WatchParty.broadcast("error", error);
       });
-      window.WatchParty.injectedState = true;
+      window.WatchParty.injectedHtml5 = true;
+    }
+
+    if (!window.WatchParty.injectedMPV && BetterStremio.Modules.deviceMPV) {
+      BetterStremio.Modules.deviceMPV.addListener("statechanged", (state) => {
+        if (state.NO_SPREAD) return;
+        if (
+          BetterStremio.Modules.deviceMPV.time ===
+          window.WatchParty.NO_SPREAD_TIME
+        )
+          return;
+        window.WatchParty.broadcast("state", {
+          state,
+          time: BetterStremio.Modules.deviceMPV.time,
+          paused: BetterStremio.Modules.deviceMPV.paused,
+          playbackSpeed: BetterStremio.Modules.deviceMPV.playbackSpeed,
+        });
+      });
+      BetterStremio.Modules.deviceMPV.addListener("timeupdate", () => {
+        delete window.WatchParty.NO_SPREAD;
+      });
+      BetterStremio.Modules.deviceMPV.addListener("error", (error) => {
+        window.WatchParty.broadcast("error", error);
+      });
+      window.WatchParty.injectedMPV = true;
     }
   }
+
   broadcastCommand(cmd, data) {
     if (WatchParty.client && !window.WatchParty.NO_SPREAD) {
       try {
@@ -333,18 +367,28 @@ module.exports = class WatchParty {
       BetterStremio.Modules.$state.go("player/NO_SPREAD", ...playerData);
     } else if (
       cmd === "state" &&
-      BetterStremio.Modules.deviceHtml5 &&
+      (BetterStremio.Modules.deviceMPV || BetterStremio.Modules.deviceHtml5) &&
       !window.WatchParty.NO_SPREAD
     ) {
       window.WatchParty.NO_SPREAD = true;
-      BetterStremio.Modules.deviceHtml5.playbackSpeed = data.playbackSpeed;
+      if (data.playbackSpeed)
+        BetterStremio.Modules.deviceHtml5.playbackSpeed = data.playbackSpeed;
+      if (data.playbackSpeed)
+        BetterStremio.Modules.deviceMPV.playbackSpeed = data.playbackSpeed;
       if (BetterStremio.Modules.deviceHtml5.paused !== data.paused)
         BetterStremio.Modules.deviceHtml5.paused = data.paused;
+      if (BetterStremio.Modules.deviceMPV.paused !== data.paused)
+        BetterStremio.Modules.deviceMPV.paused = data.paused;
       if (window.WatchParty.LAST_STATE !== strData && !data.paused) {
         window.WatchParty.NO_SPREAD_TIME = data.time + parseInt(latency);
         BetterStremio.Modules.deviceHtml5.time = data.time + parseInt(latency);
+        BetterStremio.Modules.deviceMPV.time = data.time + parseInt(latency);
       }
-      BetterStremio.Modules.deviceHtml5.emit("statechanged", {
+      BetterStremio.Modules.deviceHtml5?.emit?.("statechanged", {
+        ...data.state,
+        NO_SPREAD: true,
+      });
+      BetterStremio.Modules.deviceMPV?.emit?.("statechanged", {
         ...data.state,
         NO_SPREAD: true,
       });
@@ -357,166 +401,166 @@ module.exports = class WatchParty {
   }
   popup() {
     return `
-      <h3>WatchParty <span>v${this.getVersion()}</span></h3>
+    <h3>WatchParty <span>v${this.getVersion()}</span></h3>
+    
+    <button id="wp-create-btn" class="wp-noparty-show selected" onclick="WatchParty.create()">Create</button>
+    <button id="wp-join-btn" class="wp-noparty-show" onclick="WatchParty.join()">Join</button>
+
+    <div id="wp-create" class="tab">
+      <div class="row">Username: <input id="wp-create-user" oninput="BetterStremio.Data.store('WatchParty', 'user', this.value)" value="${
+        BetterStremio.Data.read("WatchParty", "user") || ""
+      }" autocomplete="false" type="text"/></div>
+      <div class="row">Party Name: <input id="wp-create-name" oninput="BetterStremio.Data.store('WatchParty', 'party', this.value)" value="${
+        BetterStremio.Data.read("WatchParty", "party") || "Watch Party"
+      }" autocomplete="false" type="text"/></div>
+      <div class="row">Party Pass: <input id="wp-create-pass" oninput="BetterStremio.Data.store('WatchParty', 'pass', this.value)" value="${
+        BetterStremio.Data.read("WatchParty", "pass") || ""
+      }" autocomplete="false" type="text"/></div>
+      <div class="row">New members as host: <input id="wp-create-joinashost" onchange="BetterStremio.Data.store('WatchParty', 'joinAsHost', this.checked)" ${
+        BetterStremio.Data.read("WatchParty", "joinAsHost") === "true"
+          ? "checked"
+          : ""
+      } autocomplete="false" type="checkbox"/></div>
+    </div>
+
+    <div id="wp-join" class="tab hidden">
+      <div class="row">Username: <input id="wp-join-user" oninput="BetterStremio.Data.store('WatchParty', 'user', this.value)" value="${
+        BetterStremio.Data.read("WatchParty", "user") || ""
+      }" autocomplete="false" type="text"/></div>
+      <div class="row">Party Code: <input id="wp-join-code" autocomplete="false" type="text"/></div>
+      <div class="row">Party Pass: <input id="wp-join-pass" oninput="BetterStremio.Data.store('WatchParty', 'pass', this.value)" value="${
+        BetterStremio.Data.read("WatchParty", "pass") || ""
+      }" autocomplete="false" type="text"/></div>
+    </div>
+
+    <div id="wp-loading" class="tab">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid" width="208" height="208" style="shape-rendering: auto;display: block;"><g data-idx="1"><circle stroke-linecap="round" fill="none" stroke="#9370db" stroke-width="3" r="18" cy="50" cx="50" data-idx="2" stroke-dasharray="28.274333882308138 28.274333882308138"></circle><g data-idx="4"></g></g></svg>
+    </div>
+
+    <div id="wp-inparty" class="tab" style="margin-top: 10px;">
+      <h3 class="row" style="justify-content: flex-start; margin-bottom: 10px;">
+        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24px" height="24px" viewBox="0,0,256,256"><g fill="currentColor" fill-rule="nonzero" stroke="none" stroke-width="1" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10"><g transform="scale(10.66667,10.66667)"><path d="M12,2.09961l-11,9.90039h3v9h1h15v-9h3zM12,4.79102l6,5.40039v8.80859h-2v-6h-3v6h-7v-8.80859zM8,13v3h3v-3z"></path></g></g></svg>
+        <span id="wp-partyname" style="color: inherit; font-size: 1em;"></span>
+        <button style="margin: 0; margin-left: auto; margin-right: 8px;" onclick="WatchParty.leave()">Leave</button>
+      </h3>
+      <h3 class="row" onclick="BetterStremio.Sharing.copyToClipboard(WatchParty.code())" style="cursor: pointer; color: gray;justify-content: flex-start;margin-bottom: 10px;">
+        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="18px" height="18px" viewBox="0,0,256,256" style=" margin-left: 3px; margin-right: 3px; "><g fill="currentColor" fill-rule="nonzero" stroke="none" stroke-width="1" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10"><g transform="scale(10.66667,10.66667)"><path d="M12,1c-1.64501,0 -3,1.35499 -3,3c0,0.35185 0.07394,0.68511 0.1875,1h-6.1875c-1.103,0 -2,0.897 -2,2v12c0,1.103 0.897,2 2,2h18c1.103,0 2,-0.897 2,-2v-12c0,-1.103 -0.897,-2 -2,-2h-6.1875c0.11356,-0.31489 0.1875,-0.64815 0.1875,-1c0,-1.64501 -1.35499,-3 -3,-3zM12,3c0.56413,0 1,0.43587 1,1c0,0.56413 -0.43587,1 -1,1c-0.56413,0 -1,-0.43587 -1,-1c0,-0.56413 0.43587,-1 1,-1zM3,7h9h9l0.00195,12h-18.00195zM9,9c-1.10457,0 -2,0.89543 -2,2c0,1.10457 0.89543,2 2,2c1.10457,0 2,-0.89543 2,-2c0,-1.10457 -0.89543,-2 -2,-2zM15,10v2h4v-2zM9,14c-2.185,0 -4,0.9088 -4,2.2168v0.7832h8v-0.7832c0,-1.308 -1.815,-2.2168 -4,-2.2168zM15,14v2h4v-2z"></path></g></g></svg>
+        <span id="wp-partycode" style="color: inherit;font-size: .8em;"></span>
+      </h3>
+      <div id="wp-partymembers"></div>
+    </div>
+    
+    <button class="wp-noparty-show" onclick="WatchParty.confirm()" style=" float: right; margin-top: 15px;">Enter</button>
+
+    <style type="text/css">
+      #wp-popup .tab.hidden {
+        display: none;
+      }
+
+      #wp-popup {
+        display: none;
+        background: #0c0c11;
+        min-width: 300px;
+        width: fit-content;
+        position: absolute;
+        top: 50px;
+        right: 95px;
+        border-radius: 8px;
+        box-shadow: rgba(0, 0, 0, 0.2) 0px 10px 15px;
+        padding: 20px;
+      }
+
+      #wp-popup.show {
+        display: block;
+      }
+
+      #wp-popup h3 span {
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 0.7em;
+      }
+
+      #wp-popup button {
+        padding: 4px 10px;
+        margin: 8px 8px 8px 0px;
+        border-radius: 4px;
+        background-color: mediumpurple;
+        color: white;
+        cursor: pointer;
+        font-weight: bold;
+      }
+
+      #wp-popup button:hover, 
+      #wp-popup button.selected {
+        background-color: rebeccapurple;
+      }
+
+      #wp-popup .row {
+        display: flex;
+        align-items: center;
+        margin-top: 8px;
+        white-space: nowrap;
+        gap: 10px;
+        justify-content: space-between;
+      }
+
+      #wp-popup .row.user-row {
+        padding-top: 5px;
+        margin-top: 5px;
+        border-top: 1px solid #ffffff22;
+      }
+
+      #wp-popup .row div {
+        display: none !important;
+      }
+
+      #wp-popup input[type="text"] {
+        width: 100%;
+        min-width: 30px;
+      }
+
+      .wp-loading div, #wp-loading {
+        display: none;
+      }
+
+      .wp-loading #wp-loading {
+        display: flex;
+        justify-content: center;
+      }
+
+      .wp-loading button {
+        display: none !important;
+      }
+
+      .wp-noparty button, 
+      .wp-noparty-show, 
+      #wp-popup:not(.wp-noparty) .tab,
+      #wp-inparty {
+        display: none;
+      }
+
+      #wp-popup:not(.wp-noparty) #wp-inparty {
+        display: block;
+      }
       
-      <button id="wp-create-btn" class="wp-noparty-show selected" onclick="WatchParty.create()">Create</button>
-      <button id="wp-join-btn" class="wp-noparty-show" onclick="WatchParty.join()">Join</button>
-  
-      <div id="wp-create" class="tab">
-        <div class="row">Username: <input id="wp-create-user" oninput="BetterStremio.Data.store('WatchParty', 'user', this.value)" value="${
-          BetterStremio.Data.read("WatchParty", "user") || ""
-        }" autocomplete="false" type="text"/></div>
-        <div class="row">Party Name: <input id="wp-create-name" oninput="BetterStremio.Data.store('WatchParty', 'party', this.value)" value="${
-          BetterStremio.Data.read("WatchParty", "party") || "Watch Party"
-        }" autocomplete="false" type="text"/></div>
-        <div class="row">Party Pass: <input id="wp-create-pass" oninput="BetterStremio.Data.store('WatchParty', 'pass', this.value)" value="${
-          BetterStremio.Data.read("WatchParty", "pass") || ""
-        }" autocomplete="false" type="text"/></div>
-        <div class="row">New members as host: <input id="wp-create-joinashost" onchange="BetterStremio.Data.store('WatchParty', 'joinAsHost', this.checked)" ${
-          BetterStremio.Data.read("WatchParty", "joinAsHost") === "true"
-            ? "checked"
-            : ""
-        } autocomplete="false" type="checkbox"/></div>
-      </div>
-  
-      <div id="wp-join" class="tab hidden">
-        <div class="row">Username: <input id="wp-join-user" oninput="BetterStremio.Data.store('WatchParty', 'user', this.value)" value="${
-          BetterStremio.Data.read("WatchParty", "user") || ""
-        }" autocomplete="false" type="text"/></div>
-        <div class="row">Party Code: <input id="wp-join-code" autocomplete="false" type="text"/></div>
-        <div class="row">Party Pass: <input id="wp-join-pass" oninput="BetterStremio.Data.store('WatchParty', 'pass', this.value)" value="${
-          BetterStremio.Data.read("WatchParty", "pass") || ""
-        }" autocomplete="false" type="text"/></div>
-      </div>
-  
-      <div id="wp-loading" class="tab">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid" width="208" height="208" style="shape-rendering: auto;display: block;"><g data-idx="1"><circle stroke-linecap="round" fill="none" stroke="#9370db" stroke-width="3" r="18" cy="50" cx="50" data-idx="2" stroke-dasharray="28.274333882308138 28.274333882308138"></circle><g data-idx="4"></g></g></svg>
-      </div>
-  
-      <div id="wp-inparty" class="tab" style="margin-top: 10px;">
-        <h3 class="row" style="justify-content: flex-start; margin-bottom: 10px;">
-          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24px" height="24px" viewBox="0,0,256,256"><g fill="currentColor" fill-rule="nonzero" stroke="none" stroke-width="1" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10"><g transform="scale(10.66667,10.66667)"><path d="M12,2.09961l-11,9.90039h3v9h1h15v-9h3zM12,4.79102l6,5.40039v8.80859h-2v-6h-3v6h-7v-8.80859zM8,13v3h3v-3z"></path></g></g></svg>
-          <span id="wp-partyname" style="color: inherit; font-size: 1em;"></span>
-          <button style="margin: 0; margin-left: auto; margin-right: 8px;" onclick="WatchParty.leave()">Leave</button>
-        </h3>
-        <h3 class="row" onclick="BetterStremio.Sharing.copyToClipboard(WatchParty.code())" style="cursor: pointer; color: gray;justify-content: flex-start;margin-bottom: 10px;">
-          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="18px" height="18px" viewBox="0,0,256,256" style=" margin-left: 3px; margin-right: 3px; "><g fill="currentColor" fill-rule="nonzero" stroke="none" stroke-width="1" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10"><g transform="scale(10.66667,10.66667)"><path d="M12,1c-1.64501,0 -3,1.35499 -3,3c0,0.35185 0.07394,0.68511 0.1875,1h-6.1875c-1.103,0 -2,0.897 -2,2v12c0,1.103 0.897,2 2,2h18c1.103,0 2,-0.897 2,-2v-12c0,-1.103 -0.897,-2 -2,-2h-6.1875c0.11356,-0.31489 0.1875,-0.64815 0.1875,-1c0,-1.64501 -1.35499,-3 -3,-3zM12,3c0.56413,0 1,0.43587 1,1c0,0.56413 -0.43587,1 -1,1c-0.56413,0 -1,-0.43587 -1,-1c0,-0.56413 0.43587,-1 1,-1zM3,7h9h9l0.00195,12h-18.00195zM9,9c-1.10457,0 -2,0.89543 -2,2c0,1.10457 0.89543,2 2,2c1.10457,0 2,-0.89543 2,-2c0,-1.10457 -0.89543,-2 -2,-2zM15,10v2h4v-2zM9,14c-2.185,0 -4,0.9088 -4,2.2168v0.7832h8v-0.7832c0,-1.308 -1.815,-2.2168 -4,-2.2168zM15,14v2h4v-2z"></path></g></g></svg>
-          <span id="wp-partycode" style="color: inherit;font-size: .8em;"></span>
-        </h3>
-        <div id="wp-partymembers"></div>
-      </div>
-      
-      <button class="wp-noparty-show" onclick="WatchParty.confirm()" style=" float: right; margin-top: 15px;">Enter</button>
-  
-      <style type="text/css">
-        #wp-popup .tab.hidden {
-          display: none;
-        }
-  
+      .wp-noparty button.wp-noparty-show {
+        display: inline;
+      }
+
+      #wp-popup #wp-loading svg {
+        animation-name: spin;
+        animation-duration: 650ms;
+        animation-iteration-count: infinite;
+        animation-timing-function: linear; 
+      }
+
+      @keyframes spin {from {transform:rotate(0deg);}to {transform:rotate(360deg);}}
+
+      @media (min-width: 1500px) {
         #wp-popup {
-          display: none;
-          background: #0c0c11;
-          min-width: 300px;
-          width: fit-content;
-          position: absolute;
-          top: 50px;
-          right: 95px;
-          border-radius: 8px;
-          box-shadow: rgba(0, 0, 0, 0.2) 0px 10px 15px;
-          padding: 20px;
+          top: 60px;
+          right: 118px;
         }
-  
-        #wp-popup.show {
-          display: block;
-        }
-  
-        #wp-popup h3 span {
-          color: rgba(255, 255, 255, 0.5);
-          font-size: 0.7em;
-        }
-  
-        #wp-popup button {
-          padding: 4px 10px;
-          margin: 8px 8px 8px 0px;
-          border-radius: 4px;
-          background-color: mediumpurple;
-          color: white;
-          cursor: pointer;
-          font-weight: bold;
-        }
-  
-        #wp-popup button:hover, 
-        #wp-popup button.selected {
-          background-color: rebeccapurple;
-        }
-  
-        #wp-popup .row {
-          display: flex;
-          align-items: center;
-          margin-top: 8px;
-          white-space: nowrap;
-          gap: 10px;
-          justify-content: space-between;
-        }
-  
-        #wp-popup .row.user-row {
-          padding-top: 5px;
-          margin-top: 5px;
-          border-top: 1px solid #ffffff22;
-        }
-  
-        #wp-popup .row div {
-          display: none !important;
-        }
-  
-        #wp-popup input[type="text"] {
-          width: 100%;
-          min-width: 30px;
-        }
-  
-        .wp-loading div, #wp-loading {
-          display: none;
-        }
-  
-        .wp-loading #wp-loading {
-          display: flex;
-          justify-content: center;
-        }
-  
-        .wp-loading button {
-          display: none !important;
-        }
-  
-        .wp-noparty button, 
-        .wp-noparty-show, 
-        #wp-popup:not(.wp-noparty) .tab,
-        #wp-inparty {
-          display: none;
-        }
-  
-        #wp-popup:not(.wp-noparty) #wp-inparty {
-          display: block;
-        }
-        
-        .wp-noparty button.wp-noparty-show {
-          display: inline;
-        }
-  
-        #wp-popup #wp-loading svg {
-          animation-name: spin;
-          animation-duration: 650ms;
-          animation-iteration-count: infinite;
-          animation-timing-function: linear; 
-        }
-  
-        @keyframes spin {from {transform:rotate(0deg);}to {transform:rotate(360deg);}}
-  
-        @media (min-width: 1500px) {
-          #wp-popup {
-            top: 60px;
-            right: 118px;
-          }
-        }
-      </style>`;
+      }
+    </style>`;
   }
 };
