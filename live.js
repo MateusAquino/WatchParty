@@ -14,7 +14,8 @@ module.exports = (server) => {
         if (ws.isAlive === false) return ws.terminate();
 
         ws.isAlive = false;
-        ws.ping();
+        ws.startMsg = Date.now();
+        ws.send("ping");
       }),
     30000
   );
@@ -23,10 +24,6 @@ module.exports = (server) => {
   console.log(`App Web Socket Server is running!`);
   return wss;
 };
-
-function heartbeat() {
-  this.isAlive = true;
-}
 
 function onConnection(ws, req) {
   if (!req.headers["sec-websocket-protocol"]) return ws.terminate();
@@ -43,10 +40,11 @@ function onConnection(ws, req) {
     return ws.terminate();
   }
   ws.isAlive = true;
+  ws.startMsg = Date.now();
+  ws.send("ping");
   ws.on("message", (data, binary) => (binary ? null : onMessage(ws, data)));
   ws.on("error", (error) => onError(ws, error));
   ws.on("close", () => onClose(ws));
-  ws.on("pong", heartbeat);
   protocols[protocol](ws, params);
 }
 
@@ -99,16 +97,20 @@ function onMessage(ws, data) {
     const user = parties[ws.partyCode].clients.find(
       (client) => client.userId === id
     );
-    if (hosts.length > 1 && user) {
+    if (user && (hosts.length > 1 || !user.isHost)) {
       user.isHost = !user.isHost;
       updateParty(parties[ws.partyCode]);
     }
   } else if (ws.isHost && data.startsWith("cmd:")) {
     parties[ws.partyCode].clients.forEach((client) => {
       if (client !== ws && client.readyState === WebSocket.OPEN) {
-        client.send("cmd:" + data.substring(4));
+        const latencies = (ws.latency || 0) + (client.latency || 0);
+        client.send("cmd:" + Math.round(latencies) + ":" + data.substring(4));
       }
     });
+  } else if (data === "pong") {
+    ws.isAlive = true;
+    ws.latency = ws.latency = Date.now() - ws.startMsg;
   }
 }
 
@@ -131,7 +133,7 @@ function generatePartyCode(tries = 0) {
 }
 
 function createParty(ws, params) {
-  const userName = params[2] || "???";
+  const userName = params[2] || "Anonymous";
   const password = params[3] || "";
   const name = params[4] || "WatchParty";
   const joinAsHost = params[5] || "0";
@@ -150,7 +152,7 @@ function createParty(ws, params) {
 }
 
 function joinParty(ws, params) {
-  const userName = params[2] || "???";
+  const userName = params[2] || "Anonymous";
   const code = params[3] || "???";
   const password = params[4] || "";
   const party = parties[code];
