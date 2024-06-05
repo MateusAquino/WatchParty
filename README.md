@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img width="500" src="./logo.png" align="center"></img>
+  <img width="250" src="./logo.png" align="center"></img>
 </h1>
 
 <p align="center">▶️ <strong>WatchParty</strong> is a BetterStremio session sharing plugin.</p>
@@ -78,18 +78,22 @@ Usage example: `c#1#Jane#LJ7HLC#123`
 
 #### Server Packets
 
-`upgrade` -> Sent if protocol version mismatch  
-`party:<party>` -> Returns a JSON party whenever there is a host/clients update  
-`msg:<id>:<msg>` -> Returns the user id and the message broadcasted to the party  
-`cmd:<latencies>:<cmd>` -> Returns a JSON command used by WatchParty to sync actions and the sum of latencies from one client to another (example `cmd:130:go:["player", {...}]`)  
-`badroom` -> Sent if room code/password is wrong  
-`ping` -> Awaits for pong message (30s timeout)
+```elixir
+upgrade               -> Sent if protocol version mismatch  
+party:<party>         -> Returns a JSON party whenever there is a host/clients update  
+msg:<id>:<msg>        -> Returns the user id and the message broadcasted to the party  
+cmd:<latencies>:<cmd> -> Returns a JSON command used by WatchParty to sync actions and the sum of latencies from one client to another (example `cmd:130:go:["player", {...}]`)  
+badroom               -> Sent if room code/password is wrong  
+ping                  -> Awaits for pong message (30s timeout)
+```
 
 Note: party packet returns the generated code, the first letter should be unique for each server (or "L" for local)
 
 #### Client Packets
 
-`msg:<msg>` -> Broadcasts message to party  
-`toggle:<userId>` -> Toggles user host privileges (must be a host & > 1 host in the party)  
-`cmd:<cmd>` -> Broadcasts JSON command to party (must be a host)  
-`pong` -> Ping response
+```elixir
+msg:<msg>       -> Broadcasts message to party  
+toggle:<userId> -> Toggles user host privileges (must be a host & > 1 host in the party)  
+cmd:<cmd>       -> Broadcasts JSON command to party (must be a host)  
+pong            -> Ping response
+```
