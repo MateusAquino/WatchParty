@@ -26,7 +26,7 @@
 
 **WatchParty** is the first BetterStremio plugin ever made. It was developed to connect multiple Stremio sessions at once. You can use it to start a Stremio session with friends: create and join watch party, chat (soon) and share controls. No addon sharing required.
 
-This Plugin works by intercepting events on the Stremio HTML5 Player and sharing to everyone in the party through a websocket connection. Currently there are three available servers to connect from: [Glitch](https://dramatic-hazel-epoch.glitch.me), [Adaptable](https://watch-party.adaptable.app) and [Render](https://watchparty-kyiy.onrender.com).
+This Plugin works by intercepting events on the Stremio HTML5 Player and sharing to everyone in the party through a websocket connection. Currently there are three available servers to connect from: [Glitch](https://dramatic-hazel-epoch.glitch.me), [Adaptable](https://watch-party.adaptable.app) (temp disabled) and [Render](https://watchparty-kyiy.onrender.com).
 
 This repository is currently accepting contributions and suggestions, feel free to do so :)
 

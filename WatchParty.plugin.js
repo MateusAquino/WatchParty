@@ -83,8 +83,8 @@ module.exports = class WatchParty {
   getServers() {
     return {
       L: "ws://localhost:3000/",
-      // R: "wss://watchparty-kyiy.onrender.com",
-      // G: "wss://dramatic-hazel-epoch.glitch.me",
+      R: "wss://watchparty-kyiy.onrender.com",
+      G: "wss://dramatic-hazel-epoch.glitch.me",
       // A: "wss://watch-party.adaptable.app",
     };
   }
