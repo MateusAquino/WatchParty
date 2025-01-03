@@ -5,11 +5,8 @@
 <p align="center">▶️ <strong>WatchParty</strong> is a BetterStremio session sharing plugin.</p>
 
 <p align="center">
-  <a href="https://dramatic-hazel-epoch.glitch.me">
-    <img src="https://img.shields.io/website?url=https%3A%2F%2Fdramatic-hazel-epoch.glitch.me&label=Glitch"></img>
-  </a>
-  <a href="https://watch-party.adaptable.app">
-    <img src="https://img.shields.io/website?url=https%3A%2F%2Fwatch-party.adaptable.app&label=Adaptable"></img>
+  <a href="https://mateusaquino-watchparty.hf.space">
+    <img src="https://img.shields.io/website?url=https%3A%2F%2Fmateusaquino-watchparty.hf.space&label=Hugging+Face"></img>
   </a>
   <a href="https://watchparty-kyiy.onrender.com">
     <img src="https://img.shields.io/website?url=https%3A%2F%2Fwatchparty-kyiy.onrender.com&label=Render"></img>
@@ -24,13 +21,13 @@
   </a>
 </p>
 
-**WatchParty** is the first BetterStremio plugin ever made. It was developed to connect multiple Stremio sessions at once. You can use it to start a Stremio session with friends: create and join watch party, chat (soon) and share controls. No addon sharing required.
+**WatchParty** is the first BetterStremio plugin ever made. It was developed to connect multiple Stremio sessions at once. You can use it to start a Stremio session with friends: create and join watch party, chat and share controls. No addon sharing required.
 
-This Plugin works by intercepting events on the Stremio HTML5 Player and sharing to everyone in the party through a websocket connection. Currently there are three available servers to connect from: [Glitch](https://dramatic-hazel-epoch.glitch.me), [Adaptable](https://watch-party.adaptable.app) (temp disabled) and [Render](https://watchparty-kyiy.onrender.com).
+This Plugin works by intercepting events on the Stremio HTML5 Player and sharing to everyone in the party through a websocket connection. Currently there are two available servers to connect from: [Hugging Face](https://mateusaquino-watchparty.hf.space) and [Render](https://watchparty-kyiy.onrender.com).
 
 This repository is currently accepting contributions and suggestions, feel free to do so :)
 
-Note: `msg:` packet was not yet implemented in WatchParty's plugin.
+Now we also feature a realtime chat with party members and you're allowed to use emojis and color codes in your name and messages.
 
 ## 🌐 WatchParty Server
 
@@ -47,7 +44,9 @@ npm start
 ```
 
 A WatchParty server instance will be up at `localhost:3000`.  
-You may also change the env variables if needed: `PORT` and `SERVER_PREFIX` (single letter, defaults to `L`).
+You may also change the env variables if needed: `PORT` and `SERVER_PREFIX` (single letter, defaults to `L`).  
+
+This repository also contains the `Dockerfile` used to host the websocket server at [Hugging Face](https://huggingface.co/spaces/MateusAquino/WatchParty/tree/main).
 
 ### Server Connection
 
