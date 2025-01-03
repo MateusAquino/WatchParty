@@ -21,7 +21,7 @@
   </a>
 </p>
 
-**WatchParty** is the first BetterStremio plugin ever made. It was developed to connect multiple Stremio sessions at once. You can use it to start a Stremio session with friends: create and join watch party, chat and share controls. No addon sharing required.
+**WatchParty** is the first [BetterStremio](https://github.com/MateusAquino/BetterStremio) plugin ever made. It was developed to connect multiple Stremio sessions at once. You can use it to start a Stremio session with friends: create and join watch party, chat and share controls. No addon sharing required.
 
 This Plugin works by intercepting events on the Stremio HTML5 Player and sharing to everyone in the party through a websocket connection. Currently there are two available servers to connect from: [Hugging Face](https://mateusaquino-watchparty.hf.space) and [Render](https://watchparty-kyiy.onrender.com).
 
