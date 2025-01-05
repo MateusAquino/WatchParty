@@ -5,7 +5,7 @@ module.exports = class WatchParty {
     "https://raw.githubusercontent.com/MateusAquino/WatchParty/main/logo.png";
   getDescription = () =>
     "Start a Stremio session with friends: watch party, chat and share controls (no addon sharing required). Make sure to play high availability movies/series to avoid buffering issues.";
-  getVersion = () => "1.1.0";
+  getVersion = () => "1.1.1";
   getAuthor = () => "MateusAquino";
   getShareURL = () => "https://github.com/MateusAquino/WatchParty";
   getUpdateURL = () =>
@@ -151,6 +151,15 @@ module.exports = class WatchParty {
 
     window.WatchParty.styleMap = this.styleMap;
     document.body.insertAdjacentHTML("afterbegin", this.chat());
+    this.element("chat").onmousemove = () => {
+      this.element("chat").classList.remove("wp-received");
+      this.element("chat").classList.add("wp-viewed");
+      clearTimeout(window.WatchParty.chatViewedTimeout);
+      window.WatchParty.chatViewedTimeout = setTimeout(
+        () => this.element("chat").classList.remove("wp-viewed"),
+        4000,
+      );
+    };
     this.applyObfuscation();
     const chatInput = this.element("chat-input");
 
@@ -233,7 +242,7 @@ module.exports = class WatchParty {
   /* ---- WatchParty definitions ---- */
   wpServers = {
     H: "wss://mateusaquino-watchparty.hf.space",
-    R: "wss://watchparty-kyiy.onrender.com",
+    U: "wss://mateusaqb-watchparty.hf.space",
     // L: "ws://localhost:3000/",
   };
 
@@ -639,17 +648,47 @@ module.exports = class WatchParty {
           bottom: 0;
           right: 0;
           z-index: 999999;
-          margin-right: 40px;
           margin-bottom: 120px;
           -webkit-mask-image: -webkit-gradient(linear, left top, left bottom, from(rgba(0, 0, 0, 0)), to(rgba(0, 0, 0, 0.0)));
           display: flex;
           transition: all 0.2s;
-          border-radius: 8px;
+          border-radius: 8px 0 0 8px;
           padding: 15px;
       }
       
       #wp-chat.wp-received {
-          -webkit-mask-image: -webkit-gradient(linear, left top, left bottom, from(rgba(0, 0, 0, 0)), to(rgba(0, 0, 0, 0.6)));
+          -webkit-mask-image: -webkit-gradient(linear, left top, left bottom, from(rgba(0, 0, 0, 0)), to(rgba(0, 0, 0, 1)));
+      }
+
+      #wp-chat.wp-viewed {
+        -webkit-mask-image: -webkit-gradient(linear, left top, left bottom, from(rgba(0, 0, 0, 0)), to(rgba(0, 0, 0, 1)));
+      }
+      
+      #wp-msgs {
+          border-bottom: 1px solid #252525;
+          padding-bottom: 4px;
+      }
+
+      #wp-chat.wp-received > #wp-msgs {
+          border-bottom: 0;
+          padding-bottom: 5px;
+      }
+
+      #wp-msgs::before {
+          height: 0;
+          margin-top: 5px;
+      }
+
+      @keyframes movingGradient {0% {background-position: 200% 50%;} 100% {background-position: 0% 50%;}}
+      #wp-chat.wp-received > #wp-msgs::before {
+          content: '';
+          width: 100%;
+          height: 2px;
+          background: linear-gradient(90deg, #252525, #cd9413);
+          background-size: 200% 100%;
+          animation: movingGradient 3s linear infinite;
+          position: absolute;
+          bottom: 59px;
       }
 
       #wp-chat:hover {
@@ -663,7 +702,7 @@ module.exports = class WatchParty {
       }
 
       #wp-chat:hover > #wp-msgs {
-          height: 70vh !important;
+          height: calc(100vh - 350px) !important;
           overflow-y: auto;
       }
 
@@ -1023,11 +1062,12 @@ module.exports = class WatchParty {
       .querySelector("#wp-msgs")
       .insertAdjacentHTML("afterbegin", messageHtml);
     window.WatchParty.applyObfuscation();
+    if (document.querySelector("#wp-chat:hover")) return;
     document.querySelector("#wp-chat").classList.add("wp-received");
     clearTimeout(window.WatchParty.receivedMsgTimeout);
     window.WatchParty.receivedMsgTimeout = setTimeout(
       () => document.querySelector("#wp-chat").classList.remove("wp-received"),
-      4000,
+      6000,
     );
   }
 
