@@ -5,7 +5,7 @@ module.exports = class WatchParty {
     "https://raw.githubusercontent.com/MateusAquino/WatchParty/main/logo.png";
   getDescription = () =>
     "Start a Stremio session with friends: watch party, chat and share controls (no addon sharing required). Make sure to play high availability movies/series to avoid buffering issues.";
-  getVersion = () => "1.1.1";
+  getVersion = () => "1.1.2";
   getAuthor = () => "MateusAquino";
   getShareURL = () => "https://github.com/MateusAquino/WatchParty";
   getUpdateURL = () =>
@@ -15,39 +15,35 @@ module.exports = class WatchParty {
   onEnable = () => this.onLoad();
 
   onDisable() {
-    clearInterval(window.WatchParty.playerObserver);
-    clearInterval(window.WatchParty.chatObserver);
-    document.removeEventListener("click", this.outsideClickListener);
-    this.openUI(false);
+    const WatchParty = window.WatchParty;
+    const BetterStremio = window.BetterStremio;
+    clearInterval(WatchParty.playerObserver);
+    clearInterval(WatchParty.chatObserver);
+    document.removeEventListener("click", WatchParty.outsideClickListener);
+    WatchParty.openUI(false);
 
     if (BetterStremio.Modules.$state.go.wpInjected) {
       BetterStremio.Modules.$state.go.wpInjected = false;
-      BetterStremio.Modules.$state.go = window.WatchParty.uninjectedGo;
+      BetterStremio.Modules.$state.go = WatchParty.uninjectedGo;
     }
 
     if (BetterStremio.Scopes?.playerControlsCtrl?.playerGoBack?.wpInjected) {
       BetterStremio.Scopes.playerControlsCtrl.playerGoBack.wpInjected = false;
       BetterStremio.Scopes.playerControlsCtrl.playerGoBack =
-        window.WatchParty.uninjectedPlayerGoBack;
+        WatchParty.uninjectedPlayerGoBack;
     }
 
     const device = BetterStremio.Player;
 
     if (device && device.wpInjected) {
-      device.removeListener(
-        "statechanged",
-        window.WatchParty.events.onStateChanged,
-      );
-      device.removeListener(
-        "timeupdate",
-        window.WatchParty.events.onTimeUpdate,
-      );
-      device.removeListener("error", window.WatchParty.events.onError);
+      device.removeListener("statechanged", WatchParty.events.onStateChanged);
+      device.removeListener("timeupdate", WatchParty.events.onTimeUpdate);
+      device.removeListener("error", WatchParty.events.onError);
       device.wpInjected = false;
     }
 
-    window.WatchParty.leave();
-    clearTimeout(window.WatchParty.pingTimeout);
+    WatchParty.leave();
+    clearTimeout(WatchParty.pingTimeout);
     this.element("control").remove();
     this.element("chat").remove();
     this.element("chat-style").remove();
@@ -59,20 +55,11 @@ module.exports = class WatchParty {
     const WatchPartyControl = document.createElement("li");
     WatchPartyControl.id = "wp-control";
     WatchPartyControl.innerHTML = this.control();
-    WatchPartyControl.onclick = () => this.openUI();
 
     const WatchPartyPopup = document.createElement("div");
     WatchPartyPopup.id = "wp-popup";
     WatchPartyPopup.innerHTML = this.popup();
     WatchPartyPopup.classList.add("wp-noparty");
-
-    this.outsideClickListener = (event) => {
-      const isClickInside = WatchPartyControl.contains(event.target) ||
-        WatchPartyPopup.contains(event.target);
-      if (!isClickInside) this.openUI(false);
-    };
-
-    document.addEventListener("click", this.outsideClickListener);
 
     windowControls.insertBefore(WatchPartyControl, windowControls.firstChild);
 
@@ -82,32 +69,37 @@ module.exports = class WatchParty {
     );
 
     window.WatchParty = {};
-    window.WatchParty.code = () => window.WatchParty.client?.party?.code;
-    window.WatchParty.create = () => this.btnCreate(this.element);
-    window.WatchParty.join = () => this.btnJoin(this.element);
-    window.WatchParty.confirm = () => this.btnConfirm(this.element);
-    window.WatchParty.toggle = (userId) =>
-      window.WatchParty.client.send(`toggle:${userId}`);
-    window.WatchParty.applyObfuscation = this.applyObfuscation;
-    window.WatchParty.broadcast = this.broadcastCommand;
-    window.WatchParty.sendMessage = this.sendMessage;
-    window.WatchParty.mineParse = this.mineParse;
-    window.WatchParty.applyCode = this.applyCode;
-    window.WatchParty.execute = this.execCommand;
-    window.WatchParty.message = this.message;
-    window.WatchParty.inject = this.inject;
-    window.WatchParty.picker = this.picker;
-    window.WatchParty.leave = () =>
-      window.WatchParty.client?.terminate?.() ||
-      window.WatchParty.client?.close?.();
-    window.WatchParty.stateChangedInterval = 100;
-    window.WatchParty.failedServers = [];
-    window.WatchParty.events = {
+    const WatchParty = window.WatchParty;
+    const BetterStremio = window.BetterStremio;
+    WatchParty.code = () => WatchParty.client?.party?.code;
+    WatchParty.create = () => this.btnCreate(this.element);
+    WatchParty.join = () => this.btnJoin(this.element);
+    WatchParty.confirm = () => this.btnConfirm(this.element);
+    WatchParty.toggle = (userId) => WatchParty.client.send(`toggle:${userId}`);
+    WatchParty.maxDelayBetweenSync = 300;
+    WatchParty.applyObfuscation = this.applyObfuscation;
+    WatchParty.handleMessage = this.handleMessage;
+    WatchParty.broadcast = this.broadcastCommand;
+    WatchParty.sendMessage = this.sendMessage;
+    WatchParty.mineParse = this.mineParse;
+    WatchParty.applyCode = this.applyCode;
+    WatchParty.execute = this.execCommand;
+    WatchParty.message = this.message;
+    WatchParty.openUI = this.openUI;
+    WatchParty.inject = this.inject;
+    WatchParty.picker = this.picker;
+    WatchParty.leave = () =>
+      WatchParty.client?.terminate?.() ||
+      WatchParty.client?.close?.();
+    WatchParty.stateChangedInterval = 100;
+    WatchParty.styleMap = this.styleMap;
+    WatchParty.failedServers = [];
+    WatchParty.events = {
       onStateChanged: this.onStateChanged,
       onTimeUpdate: this.onTimeUpdate,
       onError: this.onError,
     };
-    window.WatchParty.chatObserver = setInterval(() => {
+    WatchParty.chatObserver = setInterval(() => {
       const hideChat =
         document.querySelector('[ui-view="detail"]:not(.ng-hide)') ||
         document.querySelector(".control.active");
@@ -115,98 +107,106 @@ module.exports = class WatchParty {
         ? "none"
         : "auto";
     }, 400);
-    window.WatchParty.playerObserverPaused = null;
-    window.WatchParty.playerObserverSpeed = null;
-    window.WatchParty.playerObserver = setInterval(() => {
+    WatchParty.playerObserverPaused = null;
+    WatchParty.playerObserverSpeed = null;
+    WatchParty.playerObserver = setInterval(() => {
+      const WatchParty = window.WatchParty;
+      const BetterStremio = window.BetterStremio;
       if (
-        (window.WatchParty.playerObserverPaused !==
-            window.BetterStremio.Player.paused &&
-          window.BetterStremio.Player.paused !== null) ||
-        window.WatchParty.playerObserverSpeed !==
-          window.BetterStremio.Player.playbackSpeed
+        (WatchParty.playerObserverPaused !== BetterStremio.Player.paused &&
+          BetterStremio.Player.paused !== null) ||
+        WatchParty.playerObserverSpeed !== BetterStremio.Player.playbackSpeed
       ) {
-        window.WatchParty.broadcast("state", {
-          state: window.BetterStremio.Player.state,
-          time: window.BetterStremio.Player.time,
-          paused: window.BetterStremio.Player.state === 2
-            ? window.WatchParty.playerObserverPaused
-            : window.BetterStremio.Player.paused,
-          playbackSpeed: window.BetterStremio.Player.playbackSpeed,
+        WatchParty.broadcast("state", {
+          state: BetterStremio.Player.state,
+          time: BetterStremio.Player.time,
+          paused: BetterStremio.Player.state === 2
+            ? WatchParty.playerObserverPaused
+            : BetterStremio.Player.paused,
+          playbackSpeed: BetterStremio.Player.playbackSpeed,
           force: true,
         });
-        window.WatchParty.playerObserverPaused =
-          window.BetterStremio.Player.paused;
-        window.WatchParty.playerObserverSpeed =
-          window.BetterStremio.Player.playbackSpeed;
+        WatchParty.playerObserverPaused = BetterStremio.Player.paused;
+        WatchParty.playerObserverSpeed = BetterStremio.Player.playbackSpeed;
       } else if (
-        [3, 4].includes(window.BetterStremio.Player.state) &&
+        [3, 4].includes(BetterStremio.Player.state) &&
         BetterStremio.Scopes.loadingBarCtrl.getPlayerState() === "buffering"
       ) {
         BetterStremio.Player.emit("statechanged", {
-          state: window.BetterStremio.Player.state,
+          state: BetterStremio.Player.state,
           NO_SPREAD: true,
         });
       }
-    }, window.WatchParty.stateChangedInterval);
+    }, WatchParty.stateChangedInterval);
 
-    window.WatchParty.styleMap = this.styleMap;
+    WatchPartyControl.onclick = () => window.WatchParty.openUI();
+    WatchParty.outsideClickListener = (event) => {
+      const WatchPartyControl = document.getElementById("wp-control");
+      const isClickInside = WatchPartyControl.contains(event.target) ||
+        WatchPartyPopup.contains(event.target);
+      if (!isClickInside) window.WatchParty.openUI(false);
+    };
+
+    document.addEventListener("click", WatchParty.outsideClickListener);
+
     document.body.insertAdjacentHTML("afterbegin", this.chat());
     this.element("chat").onmousemove = () => {
       this.element("chat").classList.remove("wp-received");
       this.element("chat").classList.add("wp-viewed");
       clearTimeout(window.WatchParty.chatViewedTimeout);
       window.WatchParty.chatViewedTimeout = setTimeout(
-        () => this.element("chat").classList.remove("wp-viewed"),
-        4000,
+        () => document.getElementById("wp-chat").classList.remove("wp-viewed"),
+        2000,
       );
     };
     this.applyObfuscation();
     const chatInput = this.element("chat-input");
 
     chatInput.onkeydown = (e) => {
+      const WatchParty = window.WatchParty;
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         const text = chatInput.value;
         if (text) {
-          window.WatchParty.sendMessage(text);
-          window.WatchParty.chatHistory.push(text);
-          window.WatchParty.chatHistoryPointer = 0;
-          window.WatchParty.chatLastInput = "";
+          WatchParty.sendMessage(text);
+          WatchParty.chatHistory.push(text);
+          WatchParty.chatHistoryPointer = 0;
+          WatchParty.chatLastInput = "";
           chatInput.value = "";
         }
         // arrow up & caret on top of the input should cycle through chat history
       } else if (e.key === "ArrowUp" && chatInput.selectionStart === 0) {
         e.preventDefault();
         if (
-          window.WatchParty.chatHistoryPointer <
-            window.WatchParty.chatHistory.length
+          WatchParty.chatHistoryPointer <
+            WatchParty.chatHistory.length
         ) {
-          if (window.WatchParty.chatHistoryPointer === 0) {
-            window.WatchParty.chatLastInput = chatInput.value;
+          if (WatchParty.chatHistoryPointer === 0) {
+            WatchParty.chatLastInput = chatInput.value;
           }
-          chatInput.value = window.WatchParty.chatHistory[
-            window.WatchParty.chatHistory.length -
-            window.WatchParty.chatHistoryPointer -
+          chatInput.value = WatchParty.chatHistory[
+            WatchParty.chatHistory.length -
+            WatchParty.chatHistoryPointer -
             1
           ];
           chatInput.selectionStart = 0;
           chatInput.selectionEnd = 0;
-          window.WatchParty.chatHistoryPointer++;
+          WatchParty.chatHistoryPointer++;
         }
       } else if (
         e.key === "ArrowDown" &&
         chatInput.selectionStart === chatInput.value.length
       ) {
         e.preventDefault();
-        if (window.WatchParty.chatHistoryPointer > 0) {
-          chatInput.value = window.WatchParty.chatHistory[
-            window.WatchParty.chatHistory.length -
-            window.WatchParty.chatHistoryPointer +
+        if (WatchParty.chatHistoryPointer > 0) {
+          chatInput.value = WatchParty.chatHistory[
+            WatchParty.chatHistory.length -
+            WatchParty.chatHistoryPointer +
             1
           ];
-          window.WatchParty.chatHistoryPointer--;
-          if (window.WatchParty.chatHistoryPointer === 0) {
-            chatInput.value = window.WatchParty.chatLastInput;
+          WatchParty.chatHistoryPointer--;
+          if (WatchParty.chatHistoryPointer === 0) {
+            chatInput.value = WatchParty.chatLastInput;
           }
         }
       }
@@ -229,10 +229,7 @@ module.exports = class WatchParty {
 
     // Reinjecting WatchParty on state change
     if (!BetterStremio.StremioRoot.wpInjectedStateChange) {
-      BetterStremio.StremioRoot.$on(
-        "$stateChangeSuccess",
-        window.WatchParty.inject,
-      );
+      BetterStremio.StremioRoot.$on("$stateChangeSuccess", WatchParty.inject);
       BetterStremio.StremioRoot.wpInjectedStateChange = true;
     }
 
@@ -264,12 +261,14 @@ module.exports = class WatchParty {
   }
 
   connect(protocol, partyServer = "") {
-    if (window.WatchParty.pingTimeout) {
-      clearTimeout(window.WatchParty.pingTimeout);
+    const WatchParty = window.WatchParty;
+    const BetterStremio = window.BetterStremio;
+    if (WatchParty.pingTimeout) {
+      clearTimeout(WatchParty.pingTimeout);
     }
-    if (window.WatchParty.client) {
-      window.WatchParty.client.terminate?.() ||
-        window.WatchParty.client.close?.();
+    if (WatchParty.client) {
+      WatchParty.client.terminate?.() ||
+        WatchParty.client.close?.();
     }
     const server = this.pickRandom(partyServer);
     if (this.pickRandom("") && !server) {
@@ -288,8 +287,8 @@ module.exports = class WatchParty {
         "Couldn't find any servers available! Wait 60 seconds and try again.",
       );
     }
-    window.WatchParty.client = new WebSocket(server, protocol);
-    window.WatchParty.client.heartbeat = () => {
+    WatchParty.client = new WebSocket(server, protocol);
+    WatchParty.client.heartbeat = () => {
       clearTimeout(window.WatchParty.pingTimeout);
       window.WatchParty.pingTimeout = setTimeout(() => {
         console.error("[WatchParty] Connection timeout!");
@@ -301,7 +300,7 @@ module.exports = class WatchParty {
       }, 30000 + 4000);
     };
     const retry = () => this.connect(protocol, partyServer);
-    window.WatchParty.client.onerror = () => {
+    WatchParty.client.onerror = () => {
       window.WatchParty.failedServers.push(server);
       retry();
 
@@ -310,18 +309,18 @@ module.exports = class WatchParty {
         if (index > -1) window.WatchParty.failedServers.splice(index, 1);
       }, 1 * 60 * 1000);
     };
-    window.WatchParty.client.onmessage = this.handleMessage;
-    window.WatchParty.client.onopen = window.WatchParty.client.heartbeat;
+    WatchParty.client.onmessage = WatchParty.handleMessage;
+    WatchParty.client.onopen = WatchParty.client.heartbeat;
 
     document.querySelector("#wp-msgs").innerHTML = "";
-    window.WatchParty.chatHistory = [];
-    window.WatchParty.chatHistoryPointer = 0;
-    window.WatchParty.chatLastInput = "";
-    this.element("chat").style.display = "flex";
+    WatchParty.chatHistory = [];
+    WatchParty.chatHistoryPointer = 0;
+    WatchParty.chatLastInput = "";
+    document.querySelector("#wp-chat").style.display = "flex";
 
-    window.WatchParty.message("", false, true, `You've joined the party`);
+    WatchParty.message("", false, true, `You've joined the party`);
 
-    window.WatchParty.client.onclose = () => {
+    WatchParty.client.onclose = () => {
       document.getElementById("wp-popup").classList.remove("wp-loading");
       document.getElementById("wp-popup").classList.add("wp-noparty");
       document.getElementById("wp-chat").style.display = "none";
@@ -332,15 +331,18 @@ module.exports = class WatchParty {
   }
 
   inject() {
-    if (!window.WatchParty) return;
+    const WatchParty = window.WatchParty;
+    const BetterStremio = window.BetterStremio;
+    if (!WatchParty) return;
     if (!BetterStremio.Modules.$state.go.wpInjected) {
-      window.WatchParty.uninjectedGo = BetterStremio.Modules.$state.go;
+      WatchParty.uninjectedGo = BetterStremio.Modules.$state.go;
       BetterStremio.Modules.$state.go = function () {
         console.log("[WatchParty] Injecting proxies on go handler...");
         if (arguments[0] === "player/NO_SPREAD") arguments[0] = "player";
         else if (
           arguments[0] === "player" ||
-          BetterStremio.Scopes?.playerCtrl?.$state?.current?.name === "player"
+          window.BetterStremio.Scopes?.playerCtrl?.$state?.current?.name ===
+            "player"
         ) {
           window.WatchParty.broadcast("go", Array.from(arguments));
         }
@@ -358,7 +360,7 @@ module.exports = class WatchParty {
       !BetterStremio.Scopes?.playerControlsCtrl?.playerGoBack?.wpInjected
     ) {
       console.log("[WatchParty] Injecting proxies on go back handler...");
-      window.WatchParty.uninjectedPlayerGoBack = BetterStremio.Scopes
+      WatchParty.uninjectedPlayerGoBack = BetterStremio.Scopes
         ?.playerControlsCtrl?.playerGoBack;
       BetterStremio.Scopes.playerControlsCtrl.playerGoBack = function () {
         window.WatchParty.uninjectedPlayerGoBack.apply(
@@ -374,26 +376,23 @@ module.exports = class WatchParty {
 
     if (device && !device.wpInjected) {
       console.log("[WatchParty] Injecting proxies on html/mpv player...");
-      device.addListener(
-        "statechanged",
-        window.WatchParty.events.onStateChanged,
-      );
-      device.addListener("timeupdate", window.WatchParty.events.onTimeUpdate);
-      device.addListener("error", window.WatchParty.events.onError);
+      device.addListener("statechanged", WatchParty.events.onStateChanged);
+      device.addListener("timeupdate", WatchParty.events.onTimeUpdate);
+      device.addListener("error", WatchParty.events.onError);
       device.wpInjected = true;
     }
   }
 
   onStateChanged(state) {
     setTimeout(() => {
+      const BetterStremio = window.BetterStremio;
+      const WatchParty = window.WatchParty;
       if (
-        state.NO_SPREAD ||
-        window.WatchParty.NO_SPREAD ||
-        BetterStremio.Player.paused != window.WatchParty.playerObserverPaused
-      ) {
-        return;
-      }
-      window.WatchParty.broadcast("state", {
+        state.NO_SPREAD || WatchParty.NO_SPREAD ||
+        BetterStremio.Player.paused != WatchParty.playerObserverPaused
+      ) return;
+
+      WatchParty.broadcast("state", {
         state,
         time: BetterStremio.Player.time,
         paused: BetterStremio.Player.paused,
@@ -428,6 +427,8 @@ module.exports = class WatchParty {
   }
 
   execCommand(latency, cmd, data) {
+    const WatchParty = window.WatchParty;
+    const BetterStremio = window.BetterStremio;
     console.log("[WatchParty] Executing command:", cmd, data);
     const stateNumber = data ? data.state?.state ?? data.state : undefined;
     if (cmd === "go") {
@@ -439,10 +440,10 @@ module.exports = class WatchParty {
     } else if (
       cmd === "state" &&
       BetterStremio.Player &&
-      !window.WatchParty.NO_SPREAD &&
+      !WatchParty.NO_SPREAD &&
       (data.force || ![0, 1, 2, 6].includes(stateNumber))
     ) {
-      window.WatchParty.NO_SPREAD = true;
+      WatchParty.NO_SPREAD = true;
       if (data.playbackSpeed) {
         BetterStremio.Player.playbackSpeed = data.playbackSpeed;
       }
@@ -451,10 +452,10 @@ module.exports = class WatchParty {
         BetterStremio.Player.paused = data.paused;
       }
 
-      if (
-        Math.abs(data.time - BetterStremio.Player.time) >
-          parseInt(latency) * (data.playbackSpeed ?? 1 + 0.1)
-      ) {
+      const maxDelay = (WatchParty.maxDelayBetweenSync + parseInt(latency)) *
+        (data.playbackSpeed ?? 1 + 0.1);
+
+      if (Math.abs(data.time - BetterStremio.Player.time) > maxDelay) {
         BetterStremio.Player.time = data.time + parseInt(latency);
         BetterStremio.Player.paused = data.paused;
         setTimeout(() => delete window.WatchParty.NO_SPREAD, latency);
@@ -476,10 +477,12 @@ module.exports = class WatchParty {
   }
 
   handleMessage(message) {
+    const WatchParty = window.WatchParty;
+    const BetterStremio = window.BetterStremio;
     document.getElementById("wp-popup").classList.remove("wp-loading");
     if (message.data === "ping") {
-      window.WatchParty.client.send("pong");
-      window.WatchParty.client.heartbeat();
+      WatchParty.client.send("pong");
+      WatchParty.client.heartbeat();
     } else if (message.data === "badroom") {
       document.getElementById("wp-join-pass").value = "";
       BetterStremio.Toasts.error(
@@ -493,8 +496,8 @@ module.exports = class WatchParty {
       );
     } else if (message.data.startsWith("party:")) {
       const newParty = JSON.parse(message.data.substring(6));
-      if (window.WatchParty.client.party && newParty) {
-        const oldMembers = window.WatchParty.client.party.members;
+      if (WatchParty.client.party && newParty) {
+        const oldMembers = WatchParty.client.party.members;
         const newMembers = newParty.members;
 
         if (oldMembers.length < newMembers.length) {
@@ -502,7 +505,7 @@ module.exports = class WatchParty {
             (member) =>
               !oldMembers.map((el) => el.userId).includes(member.userId),
           );
-          window.WatchParty.message(
+          WatchParty.message(
             "",
             false,
             true,
@@ -513,7 +516,7 @@ module.exports = class WatchParty {
             (member) =>
               !newMembers.map((el) => el.userId).includes(member.userId),
           );
-          window.WatchParty.message(
+          WatchParty.message(
             "",
             false,
             true,
@@ -524,7 +527,7 @@ module.exports = class WatchParty {
             if (oldMembers[i].isHost !== newMembers[i].isHost) {
               const member = newMembers[i];
               const action = member.isHost ? "promoted to" : "demoted from";
-              window.WatchParty.message(
+              WatchParty.message(
                 "",
                 false,
                 true,
@@ -534,7 +537,7 @@ module.exports = class WatchParty {
           }
         }
       }
-      window.WatchParty.client.party = newParty;
+      WatchParty.client.party = newParty;
       const hostIcon =
         `<svg style="margin-right:5px;height:15px" viewBox="0,0,256,256"><g fill="#9370db"><g transform="scale(10.66667,10.66667)"><path d="M12,3c-0.55228,0 -1,0.44772 -1,1c-0.00042,0.32306 0.15527,0.62642 0.41797,0.81445l-3.07227,4.30078l-5.39844,-1.79883c0.03449,-0.10194 0.0523,-0.20879 0.05273,-0.31641c0,-0.55228 -0.44772,-1 -1,-1c-0.55228,0 -1,0.44772 -1,1c0,0.55228 0.44772,1 1,1c0.07298,-0.00053 0.14567,-0.00904 0.2168,-0.02539l1.7832,8.02539v4h16v-4l1.7832,-8.02344c0.0712,0.01569 0.14389,0.02355 0.2168,0.02344c0.55228,0 1,-0.44772 1,-1c0,-0.55228 -0.44772,-1 -1,-1c-0.55228,0 -1,0.44772 -1,1c0.00044,0.10762 0.01824,0.21446 0.05273,0.31641l-5.39844,1.79883l-3.07422,-4.30273c0.26288,-0.18721 0.41926,-0.48977 0.41992,-0.8125c0,-0.55228 -0.44772,-1 -1,-1zM12,7.44141l2.02539,2.83594l0.85938,1.20313l1.40039,-0.4668l2.99609,-0.99805l-0.88477,3.98438h-12.79297l-0.88477,-3.98633l2.99414,0.99805l1.40039,0.4668l0.85938,-1.20117zM6,16h12v2h-12z"></path></g></g></svg>`;
       const toggleHostIcon =
@@ -554,7 +557,7 @@ module.exports = class WatchParty {
             }${window.WatchParty.mineParse(member.userName)}</span>
             ${
               hostCount > 1 || (hostCount === 1 && !member.isHost)
-                ? `<button onclick="WatchParty.toggle('${member.userId}')">${toggleHostIcon}</button>`
+                ? `<button onclick="window.WatchParty.toggle('${member.userId}')">${toggleHostIcon}</button>`
                 : ""
             }
             </div>`,
@@ -572,25 +575,22 @@ module.exports = class WatchParty {
       const jsonData = remainingData.substring(secondSeparatorIndex + 1);
       if (!jsonData) return;
       const data = jsonData === "undefined" ? undefined : JSON.parse(jsonData);
-      window.WatchParty.execute(latency, cmd, data);
+      WatchParty.execute(latency, cmd, data);
     } else if (message.data.startsWith("msg:")) {
       const data = message.data.substring(4);
       const senderId = data.substring(0, data.indexOf(":"));
       const text = data.substring(data.indexOf(":") + 1);
-      const sender = window.WatchParty.client.party.members.find(
+      const sender = WatchParty.client.party.members.find(
         (member) => member.userId === senderId,
       );
-      window.WatchParty.message(sender.userName, sender.isHost, false, text);
+      WatchParty.message(sender.userName, sender.isHost, false, text);
     }
   }
 
   /* ---- WatchParty UI Methods ---- */
   openUI(toggle = true) {
-    if (toggle) {
-      this.element("popup").classList.toggle("show");
-    } else {
-      this.element("popup").classList.remove("show");
-    }
+    if (toggle) document.getElementById("wp-popup").classList.toggle("show");
+    else document.getElementById("wp-popup").classList.remove("show");
   }
 
   element(id) {
@@ -654,6 +654,7 @@ module.exports = class WatchParty {
           transition: all 0.2s;
           border-radius: 8px 0 0 8px;
           padding: 15px;
+          background-color: rgba(0, 0, 0, 0.6);
       }
       
       #wp-chat.wp-received {
@@ -661,36 +662,9 @@ module.exports = class WatchParty {
       }
 
       #wp-chat.wp-viewed {
-        -webkit-mask-image: -webkit-gradient(linear, left top, left bottom, from(rgba(0, 0, 0, 0)), to(rgba(0, 0, 0, 1)));
+          -webkit-mask-image: -webkit-gradient(linear, left top, left bottom, from(rgba(0, 0, 0, 0)), to(rgba(0, 0, 0, 1)));
       }
       
-      #wp-msgs {
-          border-bottom: 1px solid #252525;
-          padding-bottom: 4px;
-      }
-
-      #wp-chat.wp-received > #wp-msgs {
-          border-bottom: 0;
-          padding-bottom: 5px;
-      }
-
-      #wp-msgs::before {
-          height: 0;
-          margin-top: 5px;
-      }
-
-      @keyframes movingGradient {0% {background-position: 200% 50%;} 100% {background-position: 0% 50%;}}
-      #wp-chat.wp-received > #wp-msgs::before {
-          content: '';
-          width: 100%;
-          height: 2px;
-          background: linear-gradient(90deg, #252525, #cd9413);
-          background-size: 200% 100%;
-          animation: movingGradient 3s linear infinite;
-          position: absolute;
-          bottom: 59px;
-      }
-
       #wp-chat:hover {
           -webkit-mask-image: -webkit-gradient(linear, left top, left bottom, from(rgba(0, 0, 0, 1)), to(rgba(0, 0, 0, 1))) !important;
           background-color: rgba(0, 0, 0, 0.9);
@@ -711,6 +685,28 @@ module.exports = class WatchParty {
         align-items: center;
       }
 
+      @keyframes movingGradient {0% {background-position: 200% 50%;} 100% {background-position: 0% 50%;}}
+      #wp-chat.wp-received > #wp-msgs::before {
+          content: '';
+          width: 100%;
+          height: 2px;
+          background: linear-gradient(90deg, #252525, #cd9413);
+          background-size: 200% 100%;
+          animation: movingGradient 3s linear infinite;
+          position: absolute;
+          bottom: 59px;
+      }
+
+      #wp-chat.wp-received > #wp-msgs {
+          border-bottom: 0;
+          padding-bottom: 5px;
+      }
+
+      #wp-msgs::before {
+          height: 0;
+          margin-top: 5px;
+      }
+
       #wp-chat > :not(#wp-msgs) {
         visibility: hidden;
       }
@@ -726,6 +722,8 @@ module.exports = class WatchParty {
           transition: all 0.2s;
           margin: 10px 0;
           overflow-wrap: anywhere;
+          border-bottom: 1px solid #252525;
+          padding-bottom: 4px;
       }
 
       .wp-msg {
@@ -845,10 +843,10 @@ module.exports = class WatchParty {
     <div style="font-weight: 800;text-align: center; margin: 5px 0;">💬 Party Chat</div>
     <div id="wp-msgs"></div>
     <div>
-      <textarea id="wp-chat-input" autocomplete="off" onclick="WatchParty.picker('none')"></textarea>
-      <svg onclick="WatchParty.picker('format')" class="wp-open-picker" viewBox="0,0,256,256"><g fill="#fff"><g transform="scale(10.66667,10.66667)"><path d="M12,2c-5.759,0 -10.38061,4.86689 -9.97461,10.71289c0.367,5.289 4.98025,9.28711 10.28125,9.28711h0.69336c1.105,0 2,-0.895 2,-2v-3c0,-1.105 0.895,-2 2,-2h3c1.105,0 2,-0.895 2,-2v-0.69336c0,-5.301 -3.99716,-9.91425 -9.28516,-10.28125c-0.24,-0.017 -0.47884,-0.02539 -0.71484,-0.02539zM12,4c0.19,0 0.38122,0.00653 0.57422,0.01953c4.164,0.289 7.42578,3.92911 7.42578,8.28711v0.69336h-3c-2.206,0 -4,1.794 -4,4v3h-0.69336c-4.358,0 -7.99911,-3.26278 -8.28711,-7.42578c-0.156,-2.25 0.59991,-4.3903 2.12891,-6.0293c1.531,-1.641 3.60956,-2.54492 5.85156,-2.54492zM12.5,5c-0.82843,0 -1.5,0.67157 -1.5,1.5c0,0.82843 0.67157,1.5 1.5,1.5c0.82843,0 1.5,-0.67157 1.5,-1.5c0,-0.82843 -0.67157,-1.5 -1.5,-1.5zM8.5,6c-0.82843,0 -1.5,0.67157 -1.5,1.5c0,0.82843 0.67157,1.5 1.5,1.5c0.82843,0 1.5,-0.67157 1.5,-1.5c0,-0.82843 -0.67157,-1.5 -1.5,-1.5zM16.5,7c-0.82843,0 -1.5,0.67157 -1.5,1.5c0,0.82843 0.67157,1.5 1.5,1.5c0.82843,0 1.5,-0.67157 1.5,-1.5c0,-0.82843 -0.67157,-1.5 -1.5,-1.5zM6.5,10c-0.82843,0 -1.5,0.67157 -1.5,1.5c0,0.82843 0.67157,1.5 1.5,1.5c0.82843,0 1.5,-0.67157 1.5,-1.5c0,-0.82843 -0.67157,-1.5 -1.5,-1.5zM10,14c-1.10457,0 -2,0.89543 -2,2c0,1.10457 0.89543,2 2,2c1.10457,0 2,-0.89543 2,-2c0,-1.10457 -0.89543,-2 -2,-2z"></path></g></g></svg>
-      <svg onclick="WatchParty.picker('emoji')" class="wp-open-picker" viewBox="0,0,256,256"><g fill="#fff"><g transform="scale(10.66667,10.66667)"><path d="M12,2c-5.523,0 -10,4.477 -10,10c0,5.523 4.477,10 10,10c5.523,0 10,-4.477 10,-10c0,-5.523 -4.477,-10 -10,-10zM12,4c4.418,0 8,3.582 8,8c0,4.418 -3.582,8 -8,8c-4.418,0 -8,-3.582 -8,-8c0,-4.418 3.582,-8 8,-8zM8.5,8c-0.828,0 -1.5,0.672 -1.5,1.5v0.5h3v-0.5c0,-0.828 -0.672,-1.5 -1.5,-1.5zM15.5,8c-0.828,0 -1.5,0.672 -1.5,1.5v0.5h3v-0.5c0,-0.828 -0.672,-1.5 -1.5,-1.5zM6.89063,12c0.8,3.206 2.77938,5.5 5.10938,5.5c2.33,0 4.30937,-2.294 5.10938,-5.5z"></path></g></g></svg>
-      <svg onclick="WatchParty.picker('none'); const text = document.getElementById('wp-chat-input').value; if (text) { window.WatchParty.sendMessage(text); document.getElementById('wp-chat-input').value = ''; }" class="wp-open-picker" viewBox="0,0,256,256"><g fill="#ffffff"><g transform="scale(10.66667,10.66667)"><path d="M22,2l-20,7.27148l12.72852,12.72852zM18.65625,5.34375l-4.73437,13.02148l-3.34375,-3.34375l5.05859,-6.6582l-6.6582,5.05859l-3.34375,-3.34375z"></path></g></g></svg>
+      <textarea id="wp-chat-input" autocomplete="off" onclick="window.WatchParty.picker('none')"></textarea>
+      <svg onclick="window.WatchParty.picker('format')" class="wp-open-picker" viewBox="0,0,256,256"><g fill="#fff"><g transform="scale(10.66667,10.66667)"><path d="M12,2c-5.759,0 -10.38061,4.86689 -9.97461,10.71289c0.367,5.289 4.98025,9.28711 10.28125,9.28711h0.69336c1.105,0 2,-0.895 2,-2v-3c0,-1.105 0.895,-2 2,-2h3c1.105,0 2,-0.895 2,-2v-0.69336c0,-5.301 -3.99716,-9.91425 -9.28516,-10.28125c-0.24,-0.017 -0.47884,-0.02539 -0.71484,-0.02539zM12,4c0.19,0 0.38122,0.00653 0.57422,0.01953c4.164,0.289 7.42578,3.92911 7.42578,8.28711v0.69336h-3c-2.206,0 -4,1.794 -4,4v3h-0.69336c-4.358,0 -7.99911,-3.26278 -8.28711,-7.42578c-0.156,-2.25 0.59991,-4.3903 2.12891,-6.0293c1.531,-1.641 3.60956,-2.54492 5.85156,-2.54492zM12.5,5c-0.82843,0 -1.5,0.67157 -1.5,1.5c0,0.82843 0.67157,1.5 1.5,1.5c0.82843,0 1.5,-0.67157 1.5,-1.5c0,-0.82843 -0.67157,-1.5 -1.5,-1.5zM8.5,6c-0.82843,0 -1.5,0.67157 -1.5,1.5c0,0.82843 0.67157,1.5 1.5,1.5c0.82843,0 1.5,-0.67157 1.5,-1.5c0,-0.82843 -0.67157,-1.5 -1.5,-1.5zM16.5,7c-0.82843,0 -1.5,0.67157 -1.5,1.5c0,0.82843 0.67157,1.5 1.5,1.5c0.82843,0 1.5,-0.67157 1.5,-1.5c0,-0.82843 -0.67157,-1.5 -1.5,-1.5zM6.5,10c-0.82843,0 -1.5,0.67157 -1.5,1.5c0,0.82843 0.67157,1.5 1.5,1.5c0.82843,0 1.5,-0.67157 1.5,-1.5c0,-0.82843 -0.67157,-1.5 -1.5,-1.5zM10,14c-1.10457,0 -2,0.89543 -2,2c0,1.10457 0.89543,2 2,2c1.10457,0 2,-0.89543 2,-2c0,-1.10457 -0.89543,-2 -2,-2z"></path></g></g></svg>
+      <svg onclick="window.WatchParty.picker('emoji')" class="wp-open-picker" viewBox="0,0,256,256"><g fill="#fff"><g transform="scale(10.66667,10.66667)"><path d="M12,2c-5.523,0 -10,4.477 -10,10c0,5.523 4.477,10 10,10c5.523,0 10,-4.477 10,-10c0,-5.523 -4.477,-10 -10,-10zM12,4c4.418,0 8,3.582 8,8c0,4.418 -3.582,8 -8,8c-4.418,0 -8,-3.582 -8,-8c0,-4.418 3.582,-8 8,-8zM8.5,8c-0.828,0 -1.5,0.672 -1.5,1.5v0.5h3v-0.5c0,-0.828 -0.672,-1.5 -1.5,-1.5zM15.5,8c-0.828,0 -1.5,0.672 -1.5,1.5v0.5h3v-0.5c0,-0.828 -0.672,-1.5 -1.5,-1.5zM6.89063,12c0.8,3.206 2.77938,5.5 5.10938,5.5c2.33,0 4.30937,-2.294 5.10938,-5.5z"></path></g></g></svg>
+      <svg onclick="window.WatchParty.picker('none'); const text = document.getElementById('wp-chat-input').value; if (text) { window.WatchParty.sendMessage(text); document.getElementById('wp-chat-input').value = ''; }" class="wp-open-picker" viewBox="0,0,256,256"><g fill="#ffffff"><g transform="scale(10.66667,10.66667)"><path d="M22,2l-20,7.27148l12.72852,12.72852zM18.65625,5.34375l-4.73437,13.02148l-3.34375,-3.34375l5.05859,-6.6582l-6.6582,5.05859l-3.34375,-3.34375z"></path></g></g></svg>
       <div data-type="format" class="wp-picker" onclick="if (event.target.tagName === 'BUTTON') {const format = event.target.dataset.key;document.getElementById('wp-chat-input').value += format}">
         ${
       Object.entries(window.WatchParty.styleMap)
@@ -987,7 +985,7 @@ module.exports = class WatchParty {
               .map((c) => randomChar(c))
               .join("");
           } else clearInterval(interval);
-        }, 70);
+        }, 40);
       });
   }
 
@@ -1043,8 +1041,9 @@ module.exports = class WatchParty {
   }
 
   message(username, isHost, isSystem, text) {
-    const safeUsername = window.WatchParty.mineParse(username);
-    const safeText = window.WatchParty.mineParse(text);
+    const WatchParty = window.WatchParty;
+    const safeUsername = WatchParty.mineParse(username);
+    const safeText = WatchParty.mineParse(text);
     const time = new Date().toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "numeric",
@@ -1058,37 +1057,39 @@ module.exports = class WatchParty {
       ? `<div class="wp-sysmsg"><span>${safeText}</span></div>`
       : `<div class="wp-msg"><span class="wp-msg-time">${time}</span><div class="wp-msg-content"><span>${icon}${safeUsername}</span><span>${safeText}</span></div></div>`;
 
-    document
-      .querySelector("#wp-msgs")
-      .insertAdjacentHTML("afterbegin", messageHtml);
-    window.WatchParty.applyObfuscation();
+    document.querySelector("#wp-msgs").insertAdjacentHTML(
+      "afterbegin",
+      messageHtml,
+    );
+    WatchParty.applyObfuscation();
     if (document.querySelector("#wp-chat:hover")) return;
     document.querySelector("#wp-chat").classList.add("wp-received");
-    clearTimeout(window.WatchParty.receivedMsgTimeout);
-    window.WatchParty.receivedMsgTimeout = setTimeout(
+    clearTimeout(WatchParty.receivedMsgTimeout);
+    WatchParty.receivedMsgTimeout = setTimeout(
       () => document.querySelector("#wp-chat").classList.remove("wp-received"),
       6000,
     );
   }
 
   popup() {
+    const BetterStremio = window.BetterStremio;
     return `
     <h3>WatchParty <span>v${this.getVersion()}</span></h3>
     
-    <button id="wp-create-btn" class="wp-noparty-show selected" onclick="WatchParty.create()">Create</button>
-    <button id="wp-join-btn" class="wp-noparty-show" onclick="WatchParty.join()">Join</button>
+    <button id="wp-create-btn" class="wp-noparty-show selected" onclick="window.WatchParty.create()">Create</button>
+    <button id="wp-join-btn" class="wp-noparty-show" onclick="window.WatchParty.join()">Join</button>
 
     <div id="wp-create" class="tab">
-      <div class="row">Username: <input id="wp-create-user" oninput="BetterStremio.Data.store('WatchParty', 'user', this.value)" value="${
+      <div class="row">Username: <input id="wp-create-user" oninput="window.BetterStremio.Data.store('WatchParty', 'user', this.value)" value="${
       BetterStremio.Data.read("WatchParty", "user") || ""
     }" autocomplete="off" type="text"/></div>
-      <div class="row">Party Name: <input id="wp-create-name" oninput="BetterStremio.Data.store('WatchParty', 'party', this.value)" value="${
+      <div class="row">Party Name: <input id="wp-create-name" oninput="window.BetterStremio.Data.store('WatchParty', 'party', this.value)" value="${
       BetterStremio.Data.read("WatchParty", "party") || "Watch Party"
     }" autocomplete="off" type="text"/></div>
-      <div class="row">Party Pass: <input type="password" id="wp-create-pass" oninput="BetterStremio.Data.store('WatchParty', 'pass', this.value)" value="${
+      <div class="row">Party Pass: <input type="password" id="wp-create-pass" oninput="window.BetterStremio.Data.store('WatchParty', 'pass', this.value)" value="${
       BetterStremio.Data.read("WatchParty", "pass") || ""
     }" autocomplete="off" type="text"/></div>
-      <div class="row">New members as host: <input id="wp-create-joinashost" onchange="BetterStremio.Data.store('WatchParty', 'joinAsHost', this.checked)" ${
+      <div class="row">New members as host: <input id="wp-create-joinashost" onchange="window.BetterStremio.Data.store('WatchParty', 'joinAsHost', this.checked)" ${
       BetterStremio.Data.read("WatchParty", "joinAsHost") === "true"
         ? "checked"
         : ""
@@ -1096,11 +1097,11 @@ module.exports = class WatchParty {
     </div>
 
     <div id="wp-join" class="tab hidden">
-      <div class="row">Username: <input id="wp-join-user" oninput="BetterStremio.Data.store('WatchParty', 'user', this.value)" value="${
+      <div class="row">Username: <input id="wp-join-user" oninput="window.BetterStremio.Data.store('WatchParty', 'user', this.value)" value="${
       BetterStremio.Data.read("WatchParty", "user") || ""
     }" autocomplete="off" type="text"/></div>
       <div class="row">Party Code: <input id="wp-join-code" autocomplete="off" type="text"/></div>
-      <div class="row">Party Pass: <input type="password" id="wp-join-pass" oninput="BetterStremio.Data.store('WatchParty', 'pass', this.value)" value="${
+      <div class="row">Party Pass: <input type="password" id="wp-join-pass" oninput="window.BetterStremio.Data.store('WatchParty', 'pass', this.value)" value="${
       BetterStremio.Data.read("WatchParty", "pass") || ""
     }" autocomplete="off" type="text"/></div>
     </div>
@@ -1113,16 +1114,16 @@ module.exports = class WatchParty {
       <h3 class="row" style="justify-content: flex-start; margin-bottom: 10px;">
         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24px" height="24px" viewBox="0,0,256,256"><g fill="currentColor" fill-rule="nonzero" stroke="none" stroke-width="1" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10"><g transform="scale(10.66667,10.66667)"><path d="M12,2.09961l-11,9.90039h3v9h1h15v-9h3zM12,4.79102l6,5.40039v8.80859h-2v-6h-3v6h-7v-8.80859zM8,13v3h3v-3z"></path></g></g></svg>
         <span id="wp-partyname" style="color: inherit; font-size: 1em;"></span>
-        <button style="margin: 0; margin-left: auto; margin-right: 8px;" onclick="WatchParty.leave()">Leave</button>
+        <button style="margin: 0; margin-left: auto; margin-right: 8px;" onclick="window.WatchParty.leave()">Leave</button>
       </h3>
-      <h3 class="row" onclick="BetterStremio.Sharing.copyToClipboard(WatchParty.code())" style="cursor: pointer; color: gray;justify-content: flex-start;margin-bottom: 10px;">
+      <h3 class="row" onclick="window.BetterStremio.Sharing.copyToClipboard(window.WatchParty.code())" style="cursor: pointer; color: gray;justify-content: flex-start;margin-bottom: 10px;">
         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="18px" height="18px" viewBox="0,0,256,256" style=" margin-left: 3px; margin-right: 3px; "><g fill="currentColor" fill-rule="nonzero" stroke="none" stroke-width="1" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10"><g transform="scale(10.66667,10.66667)"><path d="M12,1c-1.64501,0 -3,1.35499 -3,3c0,0.35185 0.07394,0.68511 0.1875,1h-6.1875c-1.103,0 -2,0.897 -2,2v12c0,1.103 0.897,2 2,2h18c1.103,0 2,-0.897 2,-2v-12c0,-1.103 -0.897,-2 -2,-2h-6.1875c0.11356,-0.31489 0.1875,-0.64815 0.1875,-1c0,-1.64501 -1.35499,-3 -3,-3zM12,3c0.56413,0 1,0.43587 1,1c0,0.56413 -0.43587,1 -1,1c-0.56413,0 -1,-0.43587 -1,-1c0,-0.56413 0.43587,-1 1,-1zM3,7h9h9l0.00195,12h-18.00195zM9,9c-1.10457,0 -2,0.89543 -2,2c0,1.10457 0.89543,2 2,2c1.10457,0 2,-0.89543 2,-2c0,-1.10457 -0.89543,-2 -2,-2zM15,10v2h4v-2zM9,14c-2.185,0 -4,0.9088 -4,2.2168v0.7832h8v-0.7832c0,-1.308 -1.815,-2.2168 -4,-2.2168zM15,14v2h4v-2z"></path></g></g></svg>
         <span id="wp-partycode" style="color: inherit;font-size: .8em;"></span>
       </h3>
       <div id="wp-partymembers"></div>
     </div>
     
-    <button class="wp-noparty-show" onclick="WatchParty.confirm()" style=" float: right; margin-top: 15px;">Enter</button>
+    <button class="wp-noparty-show" onclick="window.WatchParty.confirm()" style=" float: right; margin-top: 15px;">Enter</button>
 
     <style type="text/css">
       #wp-popup .tab.hidden {
