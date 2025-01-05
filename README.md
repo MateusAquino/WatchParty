@@ -6,10 +6,10 @@
 
 <p align="center">
   <a href="https://mateusaquino-watchparty.hf.space">
-    <img src="https://img.shields.io/website?url=https%3A%2F%2Fmateusaquino-watchparty.hf.space&label=Hugging+Face"></img>
+    <img src="https://img.shields.io/website?url=https%3A%2F%2Fmateusaquino-watchparty.hf.space&label=Server+H"></img>
   </a>
   <a href="https://mateusaqb-watchparty.hf.space">
-    <img src="https://img.shields.io/website?url=https%3A%2F%2Fmateusaqb-watchparty.hf.space&label=Render"></img>
+    <img src="https://img.shields.io/website?url=https%3A%2F%2Fmateusaqb-watchparty.hf.space&label=Server+U"></img>
   </a>
 </p>
 
