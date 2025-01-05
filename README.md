@@ -29,6 +29,25 @@ This repository is currently accepting contributions and suggestions, feel free 
 
 Now we also feature a realtime chat with party members and you're allowed to use emojis and color codes in your name and messages.
 
+## ▶️ Demo
+
+This is a demo of WatchParty synchronizing three instances:
+
+- Instance 1 (black): Patched `Stremio.exe` app with **MPV Player**
+- Instance 2 (red): Patched Stremio Webapp (`127.0.0.1:11470`) with **HTML5 Player**
+- Instance 3 (green): Patched Stremio Webapp (`127.0.0.1:11470`) with **HTML5 Player**
+
+https://github.com/user-attachments/assets/15bb9c95-692a-4150-973f-84bf9d33b2ab
+
+Note: All instances were running on the same `server.js` (same Windows machine), which improved buffering. In a real scenario, use a high-availability stream and ensure everyone has a stable internet connection.
+
+Chat features include:
+- Colored messages
+- Styled messages (bold, italic, underline, mts, ...)
+- Emojis
+- Message history (navigate using the up and down arrow keys)
+
+
 ## 🌐 WatchParty Server
 
 WatchParty is meant to be open for the public, but if you need to work on something locally you can also setup your own server.
