@@ -5,7 +5,7 @@ module.exports = class WatchParty {
     "https://raw.githubusercontent.com/MateusAquino/WatchParty/main/logo.png";
   getDescription = () =>
     "Start a Stremio session with friends: watch party, chat and share controls (no addon sharing required). Make sure to play high availability movies/series to avoid buffering issues.";
-  getVersion = () => "1.1.2";
+  getVersion = () => "1.1.3";
   getAuthor = () => "MateusAquino";
   getShareURL = () => "https://github.com/MateusAquino/WatchParty";
   getUpdateURL = () =>
@@ -164,7 +164,12 @@ module.exports = class WatchParty {
 
     chatInput.onkeydown = (e) => {
       const WatchParty = window.WatchParty;
-      if (e.key === "Enter" && !e.shiftKey) {
+
+      if (["d", "D"].includes(e.key)) {
+        e.preventDefault();
+        const [start, end] = [chatInput.selectionStart, chatInput.selectionEnd];
+        chatInput.setRangeText(e.key, start, end, "end");
+      } else if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         const text = chatInput.value;
         if (text) {
